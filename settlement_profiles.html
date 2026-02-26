@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saskatchewan Urban Settlements, 1921</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #eee;
+            overflow: hidden;
+        }
+
+        /* ── Header ─────────────────────────────────────────────── */
+        .header {
+            background: #1a1a1e;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 3px solid #0b6a41;
+            z-index: 10;
+            position: relative;
+        }
+        .header h1 {
+            color: #fff;
+            font-size: 1.2em;
+        }
+        .header p {
+            color: #9A9B9D;
+            font-size: 12px;
+        }
+        .nav-btn {
+            color: #f1c730;
+            background: transparent;
+            border: 1px solid #f1c730;
+            padding: 6px 14px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: #f1c730; color: #000; }
+
+        /* ── Layout ──────────────────────────────────────────────── */
+        .container {
+            display: flex;
+            height: calc(100vh - 61px);
+        }
+        #map { flex: 1; height: 100%; }
+
+        /* ── Sidebar ─────────────────────────────────────────────── */
+        .sidebar {
+            width: 340px;
+            background: #1a1a1e;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-left: 1px solid #252528;
+        }
+        .sidebar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        .sidebar-scroll::-webkit-scrollbar { width: 6px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: #000; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: #0b6a41; border-radius: 3px; }
+
+        /* Search */
+        .search-wrap {
+            padding: 10px 12px;
+            background: #252528;
+            border-bottom: 1px solid #000;
+        }
+        .search-label {
+            display: block;
+            color: #f1c730;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .combo-wrapper { position: relative; }
+        .combo-input {
+            width: 100%;
+            padding: 7px 28px 7px 10px;
+            border: 2px solid #252528;
+            border-radius: 4px;
+            background: #000;
+            color: #eee;
+            font-size: 13px;
+        }
+        .combo-input:focus { outline: none; border-color: #0b6a41; }
+        .combo-arrow {
+            position: absolute;
+            right: 0; top: 0; bottom: 0;
+            width: 28px;
+            display: flex; align-items: center; justify-content: center;
+            color: #9A9B9D; cursor: pointer; font-size: 10px;
+        }
+        .combo-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%; left: 0; right: 0;
+            max-height: 260px;
+            overflow-y: auto;
+            background: #1a1a1e;
+            border: 2px solid #0b6a41;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            z-index: 900;
+        }
+        .combo-dropdown.open { display: block; }
+        .combo-option {
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #ccc;
+            transition: background 0.1s;
+        }
+        .combo-option:hover, .combo-option.active {
+            background: #0b6a41; color: #fff;
+        }
+        .combo-option .rwy-hint {
+            font-size: 10px; color: #888; margin-left: 5px;
+        }
+        .combo-option:hover .rwy-hint, .combo-option.active .rwy-hint {
+            color: #ccc;
+        }
+        .combo-no-results {
+            padding: 8px 10px; color: #666;
+            font-style: italic; font-size: 12px;
+        }
+
+        /* Railway filters */
+        .filters {
+            padding: 8px 12px;
+            background: #252528;
+            border-bottom: 1px solid #000;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            display: flex; align-items: center; gap: 4px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            transition: all 0.2s;
+            background: #1a1a1e;
+        }
+        .filter-btn .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .filter-btn.active { border-color: currentColor; }
+        .filter-btn.inactive { opacity: 0.4; }
+        .filter-cpr { color: #e57373; }
+        .filter-cnr { color: #64b5f6; }
+        .filter-gtp { color: #81c784; }
+        .filter-other { color: #bdbdbd; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #9A9B9D;
+            font-size: 13px;
+        }
+        .empty-state .icon { font-size: 32px; margin-bottom: 12px; }
+        .empty-state p { margin-bottom: 6px; }
+
+        /* Settlement info card */
+        .info-card {
+            background: #252528;
+            border-radius: 5px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            border-left: 3px solid #0b6a41;
+        }
+        .info-card h2 {
+            color: #f1c730;
+            font-size: 1.1em;
+            margin-bottom: 4px;
+        }
+        .info-card .meta {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .badge-type { background: #0b6a41; color: #fff; }
+        .badge-cpr { background: #c0392b; color: #fff; }
+        .badge-cnr { background: #1565c0; color: #fff; }
+        .badge-gtp { background: #2e7d32; color: #fff; }
+        .badge-other { background: #555; color: #fff; }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid #1a1a1e;
+            font-size: 12px;
+        }
+        .stat-row .label { color: #9A9B9D; }
+        .stat-row .value { color: #eee; font-weight: bold; }
+
+        /* Section headers */
+        .section-header {
+            color: #f1c730;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 10px 0 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #0b6a41;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 18px;
+            margin-bottom: 4px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 5px; top: 6px; bottom: 6px;
+            width: 2px;
+            background: #252528;
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -15px;
+            top: 4px;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #0b6a41;
+        }
+        .timeline-item.founded::before { background: #f1c730; }
+        .timeline-item.railway::before { background: #c0392b; }
+        .timeline-item.institution::before { background: #64b5f6; }
+        .timeline-item .t-year {
+            color: #f1c730;
+            font-weight: bold;
+            margin-right: 6px;
+            font-size: 11px;
+        }
+        .timeline-item .t-event { color: #ccc; }
+
+        /* Context note */
+        .context-note {
+            background: #1a1a1e;
+            border-left: 2px solid #4D4E53;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: #9A9B9D;
+            margin-bottom: 8px;
+            border-radius: 0 3px 3px 0;
+            line-height: 1.4;
+        }
+
+        /* Connected settlements */
+        .conn-item {
+            background: #252528;
+            padding: 6px 8px;
+            margin: 3px 0;
+            border-radius: 3px;
+            border-left: 3px solid #f1c730;
+            cursor: pointer;
+            transition: transform 0.15s;
+            font-size: 12px;
+        }
+        .conn-item:hover { transform: translateX(4px); }
+        .conn-item.cpr { border-left-color: #c0392b; }
+        .conn-item.cnr { border-left-color: #1565c0; }
+        .conn-item.gtp { border-left-color: #2e7d32; }
+        .conn-item .conn-name { font-weight: bold; color: #eee; }
+        .conn-item .conn-detail { font-size: 10px; color: #9A9B9D; margin-top: 1px; }
+
+        /* Documents */
+        .doc-item {
+            background: #252528;
+            padding: 6px 8px;
+            margin: 3px 0;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        .doc-item a {
+            color: #f1c730;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 2px;
+            line-height: 1.3;
+        }
+        .doc-item a:hover { text-decoration: underline; }
+        .doc-item .doc-meta { color: #9A9B9D; font-size: 10px; }
+
+        /* Legend */
+        .legend {
+            padding: 8px 12px;
+            background: #252528;
+            border-top: 1px solid #000;
+        }
+        .legend-title {
+            color: #9A9B9D;
+            font-size: 10px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .legend-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3px 10px;
+        }
+        .legend-item {
+            display: flex; align-items: center;
+            font-size: 11px; color: #ccc;
+        }
+        .legend-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>Saskatchewan Urban Settlements, 1921</h1>
+        <p>Click any settlement to explore its history and connections</p>
+    </div>
+    <a href="index.html" class="nav-btn">&#8592; Index</a>
+</div>
+
+<div class="container">
+    <div id="map"></div>
+
+    <div class="sidebar">
+
+        <!-- Search -->
+        <div class="search-wrap">
+            <label class="search-label">Find a Settlement</label>
+            <div class="combo-wrapper">
+                <input type="text" class="combo-input" id="searchInput" placeholder="Type to search 429 settlements..." autocomplete="off">
+                <div class="combo-arrow" id="comboArrow">&#9660;</div>
+                <div class="combo-dropdown" id="comboDropdown"></div>
+            </div>
+        </div>
+
+        <!-- Railway filters -->
+        <div class="filters">
+            <button class="filter-btn filter-cpr active" data-railway="CPR" title="Canadian Pacific Railway">
+                <span class="dot" style="background:#c0392b"></span>CPR
+            </button>
+            <button class="filter-btn filter-cnr active" data-railway="CNR" title="Canadian Northern Railway">
+                <span class="dot" style="background:#1565c0"></span>CNR
+            </button>
+            <button class="filter-btn filter-gtp active" data-railway="GTP" title="Grand Trunk Pacific">
+                <span class="dot" style="background:#2e7d32"></span>GTP
+            </button>
+            <button class="filter-btn filter-other active" data-railway="Other" title="Other railways">
+                <span class="dot" style="background:#555"></span>Other
+            </button>
+        </div>
+
+        <!-- Detail panel -->
+        <div class="sidebar-scroll">
+            <div id="detailPanel">
+                <div class="empty-state">
+                    <div class="icon">&#127758;</div>
+                    <p>Select a settlement on the map<br>or search above</p>
+                    <p style="margin-top:12px;font-size:11px;">429 settlements &bull; 1921 census</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-title">Railway Company</div>
+            <div class="legend-grid">
+                <div class="legend-item"><span class="legend-dot" style="background:#c0392b"></span>CPR</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#1565c0"></span>CNR</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#2e7d32"></span>GTP</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#555"></span>Other</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const RAILWAY_COLORS = {
+    CPR: '#c0392b',
+    CNR: '#1565c0',
+    GTP: '#2e7d32',
+    Other: '#555555',
+};
+const EVENT_CLASSES = {
+    'Founded': 'founded',
+    'Railway Arrives': 'railway',
+    'First Post Office': 'institution',
+    'First Church': 'institution',
+    'First School': 'institution',
+    'First Cemetery': 'institution',
+    'First Newspaper': 'institution',
+    'Medical Facility': 'institution',
+    'Justice System': 'institution',
+    'Colonization Company': 'institution',
+    'Land Office': 'institution',
+    'Incorporated': 'founded',
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let settlements = {};
+let markers = {};        // name → L.circleMarker
+let connectionLines = [];
+let activeFilters = new Set(['CPR', 'CNR', 'GTP', 'Other']);
+let selectedName = null;
+
+// ── Map init ──────────────────────────────────────────────────────────────────
+const map = L.map('map').setView([52.0, -106.0], 6);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19
+}).addTo(map);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function railwayColor(rwy) {
+    return RAILWAY_COLORS[rwy] || RAILWAY_COLORS.Other;
+}
+
+function markerRadius(pop) {
+    if (!pop) return 5;
+    return Math.max(4, Math.min(14, Math.log(pop) * 1.4));
+}
+
+function badgeClass(rwy) {
+    return 'badge badge-' + (rwy || 'other').toLowerCase();
+}
+
+function railwayBadges(railways) {
+    return (railways || []).map(r =>
+        `<span class="${badgeClass(r)}">${r}</span>`
+    ).join(' ');
+}
+
+function formatPop(pop) {
+    return pop ? pop.toLocaleString() : 'Unknown';
+}
+
+function clearConnectionLines() {
+    connectionLines.forEach(l => map.removeLayer(l));
+    connectionLines = [];
+    // reset all marker styles
+    Object.entries(markers).forEach(([name, m]) => {
+        const s = settlements[name];
+        if (!s) return;
+        m.setStyle({
+            fillOpacity: 0.85,
+            weight: 1,
+            opacity: 0.8,
+        });
+        m.setRadius(markerRadius(s.population));
+    });
+}
+
+function drawConnections(name) {
+    clearConnectionLines();
+    const s = settlements[name];
+    if (!s) return;
+
+    const rwyConns = s.connections.Railway_Company || [];
+    rwyConns.forEach(conn => {
+        const target = settlements[conn.name];
+        if (!target || !target.lat || !target.lon) return;
+        const color = railwayColor(conn.detail);
+        const line = L.polyline(
+            [[s.lat, s.lon], [target.lat, target.lon]],
+            { color, weight: 1.5, opacity: 0.6, dashArray: null }
+        ).addTo(map);
+        connectionLines.push(line);
+
+        // Highlight target marker
+        const tm = markers[conn.name];
+        if (tm) {
+            tm.setStyle({ weight: 2.5, opacity: 1, fillOpacity: 1 });
+        }
+    });
+
+    // Emphasise selected marker
+    const m = markers[name];
+    if (m) {
+        m.setStyle({ weight: 3, opacity: 1, fillOpacity: 1 });
+        m.setRadius(markerRadius(s.population) + 3);
+    }
+}
+
+// ── Render detail panel ───────────────────────────────────────────────────────
+function renderPanel(name) {
+    const s = settlements[name];
+    if (!s) return;
+    selectedName = name;
+
+    // Build timeline HTML
+    let timelineHtml = '';
+    if (s.events && s.events.length) {
+        timelineHtml = `<div class="section-header">Historical Timeline</div><div class="timeline">`;
+        s.events.forEach(e => {
+            const cls = EVENT_CLASSES[e.event] || '';
+            timelineHtml += `<div class="timeline-item ${cls}">
+                <span class="t-year">${e.year}</span>
+                <span class="t-event">${e.event}</span>
+            </div>`;
+        });
+        timelineHtml += `</div>`;
+    }
+
+    // Build context notes HTML
+    let contextHtml = '';
+    const SHOW_CONTEXT = ['Railway Lines', 'First Church', 'First School', 'Newspapers', 'Residential School', 'Local History Source'];
+    SHOW_CONTEXT.forEach(key => {
+        if (s.context && s.context[key]) {
+            contextHtml += `<div class="section-header">${key}</div>
+                <div class="context-note">${escHtml(s.context[key])}</div>`;
+        }
+    });
+
+    // Build connections HTML
+    let connHtml = '';
+    const rwyConns = s.connections.Railway_Company || [];
+    if (rwyConns.length) {
+        connHtml += `<div class="section-header">Railway Connections (${rwyConns.length})</div>`;
+        rwyConns.slice(0, 20).forEach(c => {
+            const cls = (c.detail || 'other').toLowerCase().replace(/[^a-z]/g, '');
+            connHtml += `<div class="conn-item ${cls}" onclick="selectSettlement('${escJs(c.name)}')">
+                <div class="conn-name">${escHtml(c.name)}</div>
+                <div class="conn-detail">${escHtml(c.detail)} &bull; ${c.strength}</div>
+            </div>`;
+        });
+    }
+    const proxConns = s.connections.Proximity || [];
+    if (proxConns.length) {
+        connHtml += `<div class="section-header">Nearby Settlements (${proxConns.length})</div>`;
+        proxConns.slice(0, 10).forEach(c => {
+            connHtml += `<div class="conn-item" onclick="selectSettlement('${escJs(c.name)}')">
+                <div class="conn-name">${escHtml(c.name)}</div>
+                <div class="conn-detail">${escHtml(c.detail)}</div>
+            </div>`;
+        });
+    }
+
+    // Build documents HTML
+    let docsHtml = '';
+    if (s.documents && s.documents.length) {
+        docsHtml = `<div class="section-header">Historical Sources (${s.documents.length})</div>`;
+        s.documents.forEach(d => {
+            const meta = [d.source, d.year, d.creator].filter(Boolean).join(' &bull; ');
+            docsHtml += `<div class="doc-item">
+                <a href="${escHtml(d.url)}" target="_blank" rel="noopener">${escHtml(d.title)}</a>
+                <div class="doc-meta">${meta}</div>
+            </div>`;
+        });
+    }
+
+    document.getElementById('detailPanel').innerHTML = `
+        <div class="info-card">
+            <h2>${escHtml(s.name)}</h2>
+            <div class="meta">
+                <span class="badge badge-type">${escHtml(s.typeLabel)}</span>
+                ${railwayBadges(s.railways)}
+            </div>
+            <div class="stat-row">
+                <span class="label">Population (1921)</span>
+                <span class="value">${formatPop(s.population)}</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Census ID</span>
+                <span class="value">${escHtml(s.censusId)}</span>
+            </div>
+        </div>
+        ${timelineHtml}
+        ${connHtml}
+        ${contextHtml}
+        ${docsHtml}
+    `;
+
+    // Scroll sidebar back to top
+    document.querySelector('.sidebar-scroll').scrollTop = 0;
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+function escJs(str) {
+    return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+// ── Select a settlement (external call + marker click) ───────────────────────
+function selectSettlement(name) {
+    const s = settlements[name];
+    if (!s || !s.lat) return;
+    renderPanel(name);
+    drawConnections(name);
+    map.panTo([s.lat, s.lon], { animate: true });
+
+    // Update search input
+    document.getElementById('searchInput').value = name;
+    document.getElementById('comboDropdown').classList.remove('open');
+}
+
+// ── Place markers ─────────────────────────────────────────────────────────────
+function placeMarkers() {
+    Object.values(settlements).forEach(s => {
+        if (!s.lat || !s.lon) return;
+        const color = railwayColor(s.primaryRailway);
+        const m = L.circleMarker([s.lat, s.lon], {
+            radius: markerRadius(s.population),
+            fillColor: color,
+            color: '#fff',
+            weight: 1,
+            opacity: 0.8,
+            fillOpacity: 0.85,
+        }).addTo(map);
+        m.bindTooltip(s.name, { permanent: false, direction: 'top', className: 'dark-tip' });
+        m.on('click', () => selectSettlement(s.name));
+        markers[s.name] = m;
+    });
+}
+
+function updateMarkerVisibility() {
+    Object.entries(markers).forEach(([name, m]) => {
+        const s = settlements[name];
+        const rwy = s.primaryRailway || 'Other';
+        if (activeFilters.has(rwy)) {
+            m.addTo(map);
+        } else {
+            m.removeFrom(map);
+        }
+    });
+}
+
+// ── Railway filter buttons ────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const rwy = btn.dataset.railway;
+        if (activeFilters.has(rwy)) {
+            activeFilters.delete(rwy);
+            btn.classList.remove('active');
+            btn.classList.add('inactive');
+        } else {
+            activeFilters.add(rwy);
+            btn.classList.add('active');
+            btn.classList.remove('inactive');
+        }
+        updateMarkerVisibility();
+    });
+});
+
+// ── Search / combobox ─────────────────────────────────────────────────────────
+function buildDropdown(query) {
+    const dd = document.getElementById('comboDropdown');
+    const q = query.toLowerCase().trim();
+    const names = Object.keys(settlements);
+    const matches = q
+        ? names.filter(n => n.toLowerCase().includes(q)).slice(0, 50)
+        : names.sort().slice(0, 50);
+
+    if (!matches.length) {
+        dd.innerHTML = '<div class="combo-no-results">No results</div>';
+    } else {
+        dd.innerHTML = matches.map(name => {
+            const s = settlements[name];
+            const hint = s.railways.join('/') || 'Other';
+            return `<div class="combo-option" onclick="selectSettlement('${escJs(name)}')">
+                ${escHtml(name)}<span class="rwy-hint">${hint}</span>
+            </div>`;
+        }).join('');
+    }
+    dd.classList.add('open');
+}
+
+const searchInput = document.getElementById('searchInput');
+const comboArrow  = document.getElementById('comboArrow');
+const dropdown    = document.getElementById('comboDropdown');
+
+searchInput.addEventListener('input', () => buildDropdown(searchInput.value));
+searchInput.addEventListener('focus', () => buildDropdown(searchInput.value));
+comboArrow.addEventListener('click', () => {
+    if (dropdown.classList.contains('open')) {
+        dropdown.classList.remove('open');
+    } else {
+        buildDropdown(searchInput.value);
+    }
+});
+document.addEventListener('click', e => {
+    if (!e.target.closest('.combo-wrapper')) dropdown.classList.remove('open');
+});
+searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Escape') dropdown.classList.remove('open');
+    if (e.key === 'Enter') {
+        const first = dropdown.querySelector('.combo-option');
+        if (first) first.click();
+    }
+});
+
+// ── Load data ─────────────────────────────────────────────────────────────────
+async function loadData() {
+    const res = await fetch('settlements.json');
+    settlements = await res.json();
+    placeMarkers();
+}
+
+loadData().catch(err => {
+    document.getElementById('detailPanel').innerHTML =
+        `<div class="empty-state"><p style="color:#e57373">Failed to load data: ${err.message}</p>
+        <p>Run a local server: <code>python3 -m http.server</code></p></div>`;
+});
+</script>
+
+<!-- Dark tooltip style for Leaflet -->
+<style>
+.dark-tip {
+    background: #1a1a1e !important;
+    color: #f1c730 !important;
+    border: 1px solid #0b6a41 !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 3px;
+}
+.dark-tip::before { border-top-color: #0b6a41 !important; }
+</style>
+
+</body>
+</html>

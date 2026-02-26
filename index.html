@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saskatchewan Urban Settlements, 1921</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .header {
+            background: #1a1a1e;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #0b6a41;
+        }
+        .header h1 {
+            color: #fff;
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: #9A9B9D;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .summary {
+            background: #1a1a1e;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            border: 1px solid #252528;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 16px;
+            text-align: center;
+        }
+        .summary-item .number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #f1c730;
+        }
+        .summary-item .label {
+            color: #9A9B9D;
+            font-size: 13px;
+            margin-top: 2px;
+        }
+        h2 {
+            color: #f1c730;
+            margin: 20px 0 12px;
+            font-size: 1.1em;
+            border-bottom: 1px solid #252528;
+            padding-bottom: 6px;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: #1a1a1e;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #252528;
+            transition: transform 0.25s, box-shadow 0.25s;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(11,106,65,0.25);
+        }
+        .card-icon {
+            height: 100px;
+            background: #252528;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 44px;
+        }
+        .card-content { padding: 15px; }
+        .card h3 {
+            color: #f1c730;
+            margin-bottom: 7px;
+            font-size: 1.05em;
+        }
+        .card p {
+            color: #9A9B9D;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .card ul {
+            list-style: none;
+            margin-bottom: 12px;
+        }
+        .card ul li {
+            color: #ccc;
+            font-size: 12px;
+            padding: 2px 0;
+        }
+        .card ul li::before {
+            content: "✓ ";
+            color: #0b6a41;
+        }
+        .btn {
+            display: inline-block;
+            background: #0b6a41;
+            color: #fff;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #0d8550; }
+        .about {
+            background: #1a1a1e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #252528;
+        }
+        .about h2 { margin-top: 0; }
+        .about p {
+            color: #9A9B9D;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+        .about ul {
+            color: #9A9B9D;
+            margin-left: 20px;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        .railway-legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .rwy-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #ccc;
+        }
+        .rwy-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+        }
+        .footer {
+            background: #1a1a1e;
+            padding: 15px;
+            text-align: center;
+            border-top: 1px solid #252528;
+        }
+        .footer p { color: #666; font-size: 13px; }
+        .footer a { color: #f1c730; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Saskatchewan Urban Settlements, 1921</h1>
+    <p>An interactive historical atlas of 429 incorporated municipalities, documenting the infrastructure of settler colonialism in Saskatchewan from the 1870s to the 1920s.</p>
+</div>
+
+<div class="container">
+
+    <div class="summary">
+        <div class="summary-item">
+            <div class="number">429</div>
+            <div class="label">Settlements</div>
+        </div>
+        <div class="summary-item">
+            <div class="number">12</div>
+            <div class="label">Event Types</div>
+        </div>
+        <div class="summary-item">
+            <div class="number">48,870</div>
+            <div class="label">Connections</div>
+        </div>
+        <div class="summary-item">
+            <div class="number">1804–1947</div>
+            <div class="label">Time Span</div>
+        </div>
+        <div class="summary-item">
+            <div class="number">600+</div>
+            <div class="label">Historical Sources</div>
+        </div>
+    </div>
+
+    <h2>Explore</h2>
+    <div class="cards">
+        <div class="card">
+            <div class="card-icon">&#127758;</div>
+            <div class="card-content">
+                <h3>Settlement Profiles</h3>
+                <p>Interactive map of all 429 settlements. Click any dot to explore its full historical profile.</p>
+                <ul>
+                    <li>Timeline of institutional development</li>
+                    <li>Railway connections and lines served</li>
+                    <li>Links to connected settlements</li>
+                    <li>Historical sources (Canadiana &amp; Internet Archive)</li>
+                </ul>
+                <a href="settlement_profiles.html" class="btn">Open Map &#8594;</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="about">
+        <h2>About This Project</h2>
+        <p>
+            This atlas visualizes the urban municipalities dataset created by Jessica Jack as part of the
+            <em>Mapping Settler Colonialism in Saskatchewan</em> project at the University of Saskatchewan.
+            The dataset profiles 429 incorporated municipalities from the 1921 federal census, tracking
+            when each community established key colonial institutions.
+        </p>
+        <p>Events tracked for each settlement include:</p>
+        <ul>
+            <li>Founding and incorporation dates</li>
+            <li>Railway arrival and lines served</li>
+            <li>First post office, church, school, cemetery, and newspaper</li>
+            <li>Medical facilities, justice system, residential schools</li>
+            <li>Colonization companies and land offices</li>
+        </ul>
+        <div class="railway-legend">
+            <div class="rwy-item"><span class="rwy-dot" style="background:#c0392b"></span>Canadian Pacific Railway (CPR)</div>
+            <div class="rwy-item"><span class="rwy-dot" style="background:#1565c0"></span>Canadian Northern Railway (CNoR/CNR)</div>
+            <div class="rwy-item"><span class="rwy-dot" style="background:#2e7d32"></span>Grand Trunk Pacific Railway (GTPR/GTP)</div>
+            <div class="rwy-item"><span class="rwy-dot" style="background:#555"></span>Other (QLL&amp;S, M&amp;NW, minor lines)</div>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    <p>Part of the <a href="https://storymaps.arcgis.com/stories/8288eb9615484e708922e81411e63936" target="_blank" rel="noopener">Mapping Settler Colonialism in Saskatchewan</a> project &bull;
+    University of Saskatchewan History Department</p>
+</div>
+
+</body>
+</html>
