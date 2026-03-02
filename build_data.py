@@ -8,7 +8,6 @@ Run from the KnowledgeGraph/ directory:
 
 import json
 import re
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -161,72 +160,6 @@ def load_connections():
 
 # ── load documents ────────────────────────────────────────────────────────────
 
-def load_canadiana_docs():
-    """Return {settlement_name: [{title, url}]} top 5 per settlement."""
-    db_path = BASE_DIR / "canadiana_rankings.db"
-    if not db_path.exists():
-        return {}
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT ds.settlement_name, d.canadiana_id, d.title, d.weighted_score
-        FROM document_settlements ds
-        JOIN documents d ON ds.canadiana_id = d.canadiana_id
-        ORDER BY ds.settlement_name, d.weighted_score DESC
-    """)
-    rows = cur.fetchall()
-    conn.close()
-
-    docs = {}
-    counts = {}
-    for settlement, cid, title, score in rows:
-        if settlement not in docs:
-            docs[settlement] = []
-            counts[settlement] = 0
-        if counts[settlement] >= 5:
-            continue
-        # Canadiana URL: strip year suffix from id, e.g. sru.00001_1929_1930 → sru.00001
-        base_id = re.sub(r'_\d{4}.*$', '', cid)
-        url = f"https://www.canadiana.ca/view/{base_id}"
-        docs[settlement].append({"title": title, "source": "Canadiana", "url": url})
-        counts[settlement] += 1
-    return docs
-
-def load_ia_docs():
-    """Return {settlement_name: [{title, url, creator, date}]} top 5 per settlement."""
-    db_path = BASE_DIR / "internetarchive_rankings.db"
-    if not db_path.exists():
-        return {}
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT ds.settlement_name, d.identifier, d.title, d.creator, d.date, ds.weight
-        FROM document_settlements ds
-        JOIN documents d ON ds.identifier = d.identifier
-        ORDER BY ds.settlement_name, ds.weight DESC
-    """)
-    rows = cur.fetchall()
-    conn.close()
-
-    docs = {}
-    counts = {}
-    for settlement, identifier, title, creator, date, weight in rows:
-        if settlement not in docs:
-            docs[settlement] = []
-            counts[settlement] = 0
-        if counts[settlement] >= 5:
-            continue
-        year = date[:4] if isinstance(date, str) and len(date) >= 4 else None
-        docs[settlement].append({
-            "title": title,
-            "source": "Internet Archive",
-            "url": f"https://archive.org/details/{identifier}",
-            "creator": creator,
-            "year": year,
-        })
-        counts[settlement] += 1
-    return docs
-
 # ── build XLSX event rows ─────────────────────────────────────────────────────
 
 XLSX_EVENT_FIELDS = [
@@ -269,14 +202,6 @@ def main():
     connections = load_connections()
     print(f"  {len(connections)} settlements with connections")
 
-    print("Loading Canadiana documents...")
-    canadiana = load_canadiana_docs()
-    print(f"  {len(canadiana)} settlements with Canadiana docs")
-
-    print("Loading Internet Archive documents...")
-    ia_docs = load_ia_docs()
-    print(f"  {len(ia_docs)} settlements with IA docs")
-
     print("Loading master XLSX...")
     df = pd.read_excel(BASE_DIR / "JJack_Urban_Sask_Knowledge_Graph_Feb_2026.xlsx")
     print(f"  {len(df)} settlement rows")
@@ -314,9 +239,6 @@ def main():
                 seen.add(key)
                 merged_events.append(e)
         merged_events.sort(key=lambda e: e["year"])
-
-        # Documents: merge Canadiana + IA
-        docs = canadiana.get(name, []) + ia_docs.get(name, [])
 
         # Context fields (rich text from XLSX)
         context = {}
@@ -361,7 +283,6 @@ def main():
                 "Institutional_Timing": [],
             }),
             "context": context,
-            "documents": docs,
         }
 
     print(f"\nBuilt {len(settlements)} settlement entries")
