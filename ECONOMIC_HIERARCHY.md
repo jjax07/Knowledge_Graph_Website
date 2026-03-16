@@ -63,8 +63,9 @@ Several census industry labels are translated for a modern audience in the JavaS
 
 Before any settlement is clicked, the sidebar shows:
 
+- **Organisational Character** — wage-earner bar chart (City 83% → RSC 69% → LSC 63% → SSC 59%), with a caption framing the wage-majority as evidence of an urban labour market. Values are hardcoded from Finding 26.
 - **Provincial overview** — settlement counts per tier (7 / 39 / 27 / 356)
-- **Tier definitions** — description of each tier's economic character, followed by its top 7 industries by share of the tier's total classified workforce (computed from the 1921 census via Neo4j)
+- **Tier definitions** — description of each tier's economic character, followed by its top industries by share of the tier's total classified workforce (computed from the 1921 census via Neo4j). Own Farm and Private households are filtered out of this display (see Design Decisions).
 
 ---
 
@@ -127,6 +128,12 @@ Red → orange → yellow → green maps directly onto the hierarchy from most t
 **Why top 5 industries rather than a fixed threshold?**
 A fixed 10% threshold (used in the Phase 2 Local Concentration sheet) leaves Cities nearly empty — Saskatoon's diversified workforce spreads across dozens of industries, none of which dominates. Top-N ensures every settlement shows a meaningful snapshot regardless of size.
 
+**Why is Own Farm filtered from the tier definitions overview?**
+Own Farm tops the workforce share for three of four tiers (SSC 26%, LSC 25%, RSC 16%), which accurately reflects census counts but obscures the commercially distinctive character of each tier. Own Farm households are present by definition in every agricultural settlement and carry no diagnostic power for distinguishing service-tier functions. The overview filter removes it (and Private households, for the same reason) to foreground the industries that actually differentiate tiers — retail, banking, hotels, railways. The filter applies only to the overview panel; individual settlement detail panels are unaffected, since Own Farm legitimately tops the workforce of many SSCs.
+
+**Why a wage-earner gradient rather than an industry chart for the opening panel?**
+Finding 26 established that the tier hierarchy is simultaneously an organisational hierarchy: City 83.1% wage earner vs. SSC 58.6%, a clean monotonic gradient significant at p<0.001. A wage-earner majority across all four tiers is direct evidence of an urban labour market — not a subsistence or household farm economy. This framing is placed first in the overview to establish the urban character of the conurbation before the industry breakdown is shown.
+
 **Why straight-line track geometry rather than routed paths?**
 The `railway_tracks.json` geometry is drawn from historical shapefiles and extends beyond the provincial boundary in places. Straight lines between settlements were considered as a fallback but rejected because they misrepresent the actual network. The current implementation uses the shapefile geometry with a loose bounding-box filter to exclude tracks with no Saskatchewan coordinates.
 
@@ -136,7 +143,7 @@ The `railway_tracks.json` geometry is drawn from historical shapefiles and exten
 
 | Finding | What the map shows |
 |---------|-------------------|
-| F21 | Industry specialization by tier: Cities diversified across coordination functions; SSCs dominated by Own Farm |
+| F21 | Industry specialization by tier: Cities concentrated wholesale/admin/legal; SSCs farm-service hinterland |
 | F22 | Tier is primarily a temporal ordering — Cities founded ~1888, SSCs ~1906 |
-| F26 | Organizational hierarchy: Cities = wage employment; SSCs = own-account operators |
+| F26 | Organizational hierarchy: wage-earner gradient City 83% → SSC 59% (opening panel) |
 | F1/F2 | Railway degree does not predict tier — RSCs are not network hubs |

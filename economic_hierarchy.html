@@ -207,6 +207,50 @@
         }
         .stats-card .sc-count { font-size: 1.4em; font-weight: bold; color: #000; }
         .stats-card .sc-label { font-size: 10px; color: #333; margin-top: 1px; }
+
+        /* ── Wage-earner chart ───────────────────────────────────── */
+        .wage-chart { margin-bottom: 10px; }
+        .wage-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            gap: 6px;
+        }
+        .wage-tier-label {
+            width: 34px;
+            font-size: 10px;
+            font-weight: bold;
+            flex-shrink: 0;
+            text-align: right;
+        }
+        .wage-bar-track {
+            flex: 1;
+            background: #111;
+            border-radius: 2px;
+            height: 14px;
+            position: relative;
+        }
+        .wage-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            position: relative;
+        }
+        .wage-bar-label {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 9px;
+            font-weight: bold;
+            color: #000;
+            white-space: nowrap;
+        }
+        .wage-caption {
+            font-size: 10px;
+            color: #666;
+            margin-top: 3px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -251,6 +295,43 @@
 
                 <!-- Provincial summary (shown before any selection) -->
                 <div id="summaryPanel">
+                    <div class="section-header">Organisational Character</div>
+                    <div class="wage-chart">
+                        <div class="wage-row">
+                            <span class="wage-tier-label" style="color:#ef5350">City</span>
+                            <div class="wage-bar-track">
+                                <div class="wage-bar-fill" style="width:83.1%;background:#ef5350">
+                                    <span class="wage-bar-label">83%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="wage-row">
+                            <span class="wage-tier-label" style="color:#ffa726">RSC</span>
+                            <div class="wage-bar-track">
+                                <div class="wage-bar-fill" style="width:68.7%;background:#ffa726">
+                                    <span class="wage-bar-label">69%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="wage-row">
+                            <span class="wage-tier-label" style="color:#ffee58">LSC</span>
+                            <div class="wage-bar-track">
+                                <div class="wage-bar-fill" style="width:63.2%;background:#ffee58">
+                                    <span class="wage-bar-label" style="color:#333">63%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="wage-row">
+                            <span class="wage-tier-label" style="color:#81c784">SSC</span>
+                            <div class="wage-bar-track">
+                                <div class="wage-bar-fill" style="width:58.6%;background:#81c784">
+                                    <span class="wage-bar-label" style="color:#333">59%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="wage-caption">% of workforce in wage employment (1921 census). A wage-earner majority across all tiers signals an urban labour market, not a subsistence farm economy.</div>
+                    </div>
+
                     <div class="section-header">Provincial Overview</div>
                     <div class="stats-grid">
                         <div class="stats-card" style="background:#ef5350">
@@ -462,11 +543,15 @@ const TIER_DESCRIPTIONS = {
     SSC:  { color: '#81c784', label: 'Small Service Centre', desc: 'All remaining settlements. Farm-service focus: own-farm households, lumber, hardware, and auto repair predominate.' },
 };
 
+// Industries that are present by definition in all tiers and obscure
+// functional specialisation — excluded from the overview display only.
+const OVERVIEW_EXCLUDE = new Set(['Own Farm', 'Private households']);
+
 function renderTierDefinitions(byTier) {
     const order = ['City', 'RSC', 'LSC', 'SSC'];
     const html = order.map(tier => {
         const { color, label, desc } = TIER_DESCRIPTIONS[tier];
-        const industries = (byTier[tier] || []);
+        const industries = (byTier[tier] || []).filter(d => !OVERVIEW_EXCLUDE.has(d.industry));
         const industryRows = industries.map(d =>
             `<div class="stat-row">
                 <span class="label" style="flex:1;padding-right:8px">${escHtml(industryLabel(d.industry))}</span>
