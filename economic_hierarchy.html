@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Economic Hierarchy — Saskatchewan Urban Settlements, 1921</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #eee;
+            overflow: hidden;
+        }
+
+        /* ── Header ─────────────────────────────────────────────── */
+        .header {
+            background: #1a1a1e;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 3px solid #0b6a41;
+            z-index: 10;
+            position: relative;
+        }
+        .header h1 { color: #fff; font-size: 1.2em; }
+        .header p  { color: #9A9B9D; font-size: 12px; }
+        .nav-btn {
+            color: #f1c730;
+            background: transparent;
+            border: 1px solid #f1c730;
+            padding: 6px 14px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: #f1c730; color: #000; }
+
+        /* ── Layout ──────────────────────────────────────────────── */
+        .container { display: flex; height: calc(100vh - 61px); }
+        #map { flex: 1; height: 100%; }
+
+        /* ── Sidebar ─────────────────────────────────────────────── */
+        .sidebar {
+            width: 300px;
+            background: #1a1a1e;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-left: 1px solid #252528;
+        }
+        .sidebar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        .sidebar-scroll::-webkit-scrollbar { width: 6px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: #000; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: #0b6a41; border-radius: 3px; }
+
+        /* ── Tier filter bar ─────────────────────────────────────── */
+        .filters {
+            padding: 8px 12px;
+            background: #252528;
+            border-bottom: 1px solid #000;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            display: flex; align-items: center; gap: 4px;
+            padding: 4px 9px;
+            border-radius: 3px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            transition: all 0.2s;
+            background: #1a1a1e;
+        }
+        .filter-btn .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .filter-btn.active  { border-color: currentColor; }
+        .filter-btn.inactive { opacity: 0.35; }
+
+        /* ── Empty / detail state ────────────────────────────────── */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #9A9B9D;
+            font-size: 13px;
+        }
+        .empty-state .icon { font-size: 32px; margin-bottom: 12px; }
+        .empty-state p { margin-bottom: 6px; }
+
+        .info-card {
+            background: #252528;
+            border-radius: 5px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+        .info-card h2 { color: #f1c730; font-size: 1.05em; margin-bottom: 6px; }
+        .tier-badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 8px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid #1a1a1e;
+            font-size: 12px;
+        }
+        .stat-row .label { color: #9A9B9D; }
+        .stat-row .value { color: #eee; font-weight: bold; }
+
+        .section-header {
+            color: #f1c730;
+            font-size: 11px;
+            font-weight: bold;
+            margin: 10px 0 5px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #0b6a41;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        /* ── Tier context blurbs ─────────────────────────────────── */
+        .tier-blurb {
+            background: #252528;
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 11px;
+            color: #bbb;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+        .tier-blurb strong { color: #eee; }
+
+        /* ── Railway pills ───────────────────────────────────────── */
+        .rwy-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+        .rwy-pill {
+            padding: 2px 7px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+        }
+        .rwy-cpr   { background: #c0392b; }
+        .rwy-cnr   { background: #1565c0; }
+        .rwy-gtp   { background: #2e7d32; }
+        .rwy-other { background: #555; }
+
+        /* ── Legend ──────────────────────────────────────────────── */
+        .legend {
+            padding: 8px 12px;
+            background: #252528;
+            border-top: 1px solid #000;
+        }
+        .legend-title {
+            color: #9A9B9D;
+            font-size: 10px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .legend-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 10px;
+        }
+        .legend-item {
+            display: flex; align-items: center;
+            font-size: 11px; color: #ccc;
+        }
+        .legend-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+
+        /* ── Stats panel ─────────────────────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .stats-card {
+            border-radius: 4px;
+            padding: 7px 9px;
+            text-align: center;
+        }
+        .stats-card .sc-count { font-size: 1.4em; font-weight: bold; color: #000; }
+        .stats-card .sc-label { font-size: 10px; color: #333; margin-top: 1px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>Economic Hierarchy — Saskatchewan, 1921</h1>
+        <p>Commercial service tier of 429 incorporated municipalities</p>
+    </div>
+    <a class="nav-btn" href="settlement_profiles.html">Settlement Profiles</a>
+</div>
+
+<div class="container">
+    <div id="map"></div>
+
+    <div class="sidebar">
+
+        <!-- Tier filters -->
+        <div class="filters">
+            <button class="filter-btn active" data-tier="City"  style="color:#ef5350">
+                <span class="dot" style="background:#ef5350"></span>City
+            </button>
+            <button class="filter-btn active" data-tier="RSC" style="color:#ffa726">
+                <span class="dot" style="background:#ffa726"></span>RSC
+            </button>
+            <button class="filter-btn active" data-tier="LSC" style="color:#ffee58">
+                <span class="dot" style="background:#ffee58"></span>LSC
+            </button>
+            <button class="filter-btn active" data-tier="SSC" style="color:#81c784">
+                <span class="dot" style="background:#81c784"></span>SSC
+            </button>
+        </div>
+
+        <!-- Detail panel -->
+        <div class="sidebar-scroll">
+            <div id="detailPanel">
+                <div class="empty-state">
+                    <div class="icon">&#127758;</div>
+                    <p>Click any settlement to see its tier</p>
+                    <p style="margin-top:10px;font-size:11px;">429 settlements &bull; 1921 census</p>
+                </div>
+
+                <!-- Provincial summary (shown before any selection) -->
+                <div id="summaryPanel">
+                    <div class="section-header">Provincial Overview</div>
+                    <div class="stats-grid">
+                        <div class="stats-card" style="background:#ef5350">
+                            <div class="sc-count">7</div>
+                            <div class="sc-label">Cities</div>
+                        </div>
+                        <div class="stats-card" style="background:#ffa726">
+                            <div class="sc-count">39</div>
+                            <div class="sc-label">Regional SCs</div>
+                        </div>
+                        <div class="stats-card" style="background:#ffee58">
+                            <div class="sc-count">27</div>
+                            <div class="sc-label">Local SCs</div>
+                        </div>
+                        <div class="stats-card" style="background:#81c784">
+                            <div class="sc-count">356</div>
+                            <div class="sc-label">Small SCs</div>
+                        </div>
+                    </div>
+
+                    <div class="section-header">Tier Definitions</div>
+                    <div id="tierDefinitions"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-title">Commercial Tier</div>
+            <div class="legend-grid">
+                <div class="legend-item"><span class="legend-dot" style="background:#ef5350"></span>City (7)</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#ffa726"></span>RSC (39)</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#ffee58"></span>LSC (27)</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#81c784"></span>SSC (356)</div>
+            </div>
+            <div class="legend-title" style="margin-top:8px">Railway</div>
+            <div class="legend-grid">
+                <div class="legend-item"><span class="legend-dot" style="background:#c0392b;border-radius:2px;height:4px;width:14px;margin-right:4px"></span>CPR</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#1565c0;border-radius:2px;height:4px;width:14px;margin-right:4px"></span>CNR</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#2e7d32;border-radius:2px;height:4px;width:14px;margin-right:4px"></span>GTP</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Tier colours ──────────────────────────────────────────────────────────────
+const TIER_COLORS = {
+    City: '#ef5350',
+    RSC:  '#ffa726',
+    LSC:  '#ffee58',
+    SSC:  '#81c784',
+};
+const TIER_LABELS = {
+    City: 'City',
+    RSC:  'Regional Service Centre',
+    LSC:  'Local Service Centre',
+    SSC:  'Small Service Centre',
+};
+const RAILWAY_COLORS = {
+    CPR: '#c0392b', CNR: '#1565c0', GTP: '#2e7d32', Other: '#555555',
+};
+
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let settlements  = {};
+let markers      = {};
+let connLines    = [];
+let activeFilters = new Set(['City', 'RSC', 'LSC', 'SSC']);
+let selectedName = null;
+
+// ── Map ───────────────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomSnap: 0.5 }).setView([52.0, -106.0], 6.5);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function markerRadius(pop, tier) {
+    const base = pop ? Math.max(4, Math.min(14, Math.log(pop) * 1.4)) : 5;
+    // Boost cities so they stand out even when zoomed out
+    if (tier === 'City') return Math.max(base, 9);
+    if (tier === 'RSC')  return Math.max(base, 6);
+    return base;
+}
+
+function escHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function escJs(str) {
+    return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function rwyPillClass(r) {
+    const m = { CPR: 'rwy-cpr', CNR: 'rwy-cnr', GTP: 'rwy-gtp' };
+    return m[r] || 'rwy-other';
+}
+
+function railwayPills(railways) {
+    return (railways || []).map(r =>
+        `<span class="rwy-pill ${rwyPillClass(r)}">${r}</span>`
+    ).join('');
+}
+
+// ── Connection lines ──────────────────────────────────────────────────────────
+function clearConnections() {
+    connLines.forEach(l => map.removeLayer(l));
+    connLines = [];
+    Object.values(markers).forEach(m => {
+        m.setStyle({ weight: 1, opacity: 0.8, fillOpacity: 0.85 });
+    });
+}
+
+function drawRailwayConnections(name) {
+    clearConnections();
+    const s = settlements[name];
+    if (!s) return;
+
+    // We don't have connections in tier_settlements.json — draw lines to
+    // same-railway neighbours within visible extent using rail color
+    // (lightweight: just highlight the selected marker)
+    const m = markers[name];
+    if (m) {
+        m.setStyle({ weight: 3, opacity: 1, fillOpacity: 1 });
+        m.setRadius(markerRadius(s.population, s.tier) + 3);
+    }
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+function renderPanel(name) {
+    const s = settlements[name];
+    if (!s) return;
+    selectedName = name;
+
+    const color = TIER_COLORS[s.tier] || '#aaa';
+    const label = TIER_LABELS[s.tier] || s.tier;
+
+    document.getElementById('detailPanel').innerHTML = `
+        <div class="info-card" style="border-left: 3px solid ${color}">
+            <h2>${escHtml(name)}</h2>
+            <span class="tier-badge" style="background:${color}">${escHtml(s.tier)} &mdash; ${escHtml(label)}</span>
+            <div class="stat-row">
+                <span class="label">Population (1921)</span>
+                <span class="value">${s.population ? s.population.toLocaleString() : 'Unknown'}</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Railway</span>
+                <span class="value">
+                    <div class="rwy-pills">${railwayPills(s.railways) || '<span style="color:#666">None recorded</span>'}</div>
+                </span>
+            </div>
+        </div>
+        ${localIndustriesHtml(s)}
+        <div class="section-header">About this tier</div>
+        <div class="tier-blurb">${tierBlurb(s.tier)}</div>
+        <div style="margin-top:8px;font-size:11px;color:#666;text-align:center;">
+            <a href="settlement_profiles.html" onclick="sessionStorage.setItem('selectSettlement','${escJs(name)}');return true;"
+               style="color:#f1c730;text-decoration:none;">
+               View full profile &rarr;
+            </a>
+        </div>
+    `;
+    document.querySelector('.sidebar-scroll').scrollTop = 0;
+}
+
+const INDUSTRY_DISPLAY = {
+    'Private households': 'Domestic service (private households)',
+    'Not specified retail trade': 'Retail trade (unspecified)',
+    'Not specified manufacturing industries': 'Manufacturing (unspecified)',
+    'Electrical goods, hardware, and plumbing equipment': 'Hardware & electrical goods',
+    'Railroads and railway express service': 'Railroads & railway express',
+    'Auto repair services and garages': 'Auto repair & garages',
+    'Food stores, except dairy products': 'Food stores',
+    'General merchandise stores': 'General merchandise',
+    'Eating and drinking places': 'Eating & drinking establishments',
+    'Misc. personal services': 'Personal services',
+    'Local public administration': 'Local government',
+    'Motor vehicles and equipment': 'Motor vehicles & equipment',
+    'Banking and credit agencies': 'Banking & credit',
+};
+
+function industryLabel(name) {
+    return INDUSTRY_DISPLAY[name] || name;
+}
+
+function localIndustriesHtml(s) {
+    if (!s.localIndustries || s.localIndustries.length === 0) return '';
+    const rows = s.localIndustries.map(d => `
+        <div class="stat-row">
+            <span class="label" style="flex:1;padding-right:8px">${escHtml(industryLabel(d.industry))}</span>
+            <span class="value">${d.pct}%</span>
+        </div>`).join('');
+    return `<div class="section-header">Dominant Industries</div>
+        <div style="background:#252528;border-radius:4px;padding:4px 8px;margin-bottom:8px;font-size:11px;">
+            <div style="color:#666;font-size:10px;margin-bottom:4px;">Top 5 industries by share of local classified workforce</div>
+            ${rows}
+        </div>`;
+}
+
+const TIER_DESCRIPTIONS = {
+    City: { color: '#ef5350', label: 'City', desc: 'Pop. ≥400, bank, and legal services. Command-and-coordination nodes with the highest wage-employment and immigrant shares across all tiers.' },
+    RSC:  { color: '#ffa726', label: 'Regional Service Centre', desc: 'Pop. ≥400, bank, and medical or legal services. Intermediate hubs with elevated hotels, eating places, and personal services.' },
+    LSC:  { color: '#ffee58', label: 'Local Service Centre', desc: 'Pop. ≥400 with a bank. Neighbourhood-scale service provision.' },
+    SSC:  { color: '#81c784', label: 'Small Service Centre', desc: 'All remaining settlements. Farm-service focus: own-farm households, lumber, hardware, and auto repair predominate.' },
+};
+
+function renderTierDefinitions(byTier) {
+    const order = ['City', 'RSC', 'LSC', 'SSC'];
+    const html = order.map(tier => {
+        const { color, label, desc } = TIER_DESCRIPTIONS[tier];
+        const industries = (byTier[tier] || []);
+        const industryRows = industries.map(d =>
+            `<div class="stat-row">
+                <span class="label" style="flex:1;padding-right:8px">${escHtml(industryLabel(d.industry))}</span>
+                <span class="value">${d.pct}%</span>
+            </div>`
+        ).join('');
+        return `<div class="tier-blurb">
+            <strong style="color:${color}">${label}</strong> &mdash; ${desc}
+            ${industries.length ? `
+            <div style="margin-top:6px;font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.4px;">Top industries (% of tier workforce)</div>
+            <div style="margin-top:2px">${industryRows}</div>` : ''}
+        </div>`;
+    }).join('');
+    document.getElementById('tierDefinitions').innerHTML = html;
+}
+
+function tierBlurb(tier) {
+    const blurbs = {
+        City: 'Command-and-coordination node. Concentrated wholesale, state administration, legal, insurance, publishing, and utilities. Highest wage-employment and immigrant shares across all tiers.',
+        RSC:  'Intermediate service hub. Elevated hotels, eating and drinking establishments, and personal services. Serves surrounding SSC catchment areas as a secondary centre.',
+        LSC:  'Neighbourhood-scale service centre. Population ≥400 with banking. Provides basic commercial services to a local agricultural hinterland.',
+        SSC:  'Farm-service focus: own-farm households dominate (45%), alongside lumber, hardware, and auto repair. The backbone of the conurbation — 356 of 429 settlements.',
+    };
+    return blurbs[tier] || '';
+}
+
+// ── Place markers ─────────────────────────────────────────────────────────────
+// Draw SSC first so Cities render on top
+const TIER_ORDER = ['SSC', 'LSC', 'RSC', 'City'];
+
+function placeMarkers() {
+    const byTier = { City: [], RSC: [], LSC: [], SSC: [] };
+    Object.values(settlements).forEach(s => {
+        if (s.lat && s.lon) (byTier[s.tier] || byTier.SSC).push(s);
+    });
+
+    TIER_ORDER.forEach(tier => {
+        byTier[tier].forEach(s => {
+            const color = TIER_COLORS[tier];
+            const m = L.circleMarker([s.lat, s.lon], {
+                radius: markerRadius(s.population, tier),
+                fillColor: color,
+                color: tier === 'City' ? '#fff' : '#1a1a1e',
+                weight: tier === 'City' ? 1.5 : 0.8,
+                opacity: 0.9,
+                fillOpacity: tier === 'SSC' ? 0.65 : 0.85,
+            }).addTo(map);
+            m.bindTooltip(
+                `<strong>${s.name}</strong><br>${TIER_LABELS[tier]}`,
+                { permanent: false, direction: 'top', className: 'dark-tip' }
+            );
+            m.on('click', () => selectSettlement(s.name));
+            markers[s.name] = m;
+        });
+    });
+}
+
+function updateVisibility() {
+    Object.entries(markers).forEach(([name, m]) => {
+        const s = settlements[name];
+        if (activeFilters.has(s.tier)) {
+            m.addTo(map);
+        } else {
+            m.removeFrom(map);
+        }
+    });
+}
+
+// ── Select settlement ─────────────────────────────────────────────────────────
+function selectSettlement(name) {
+    const s = settlements[name];
+    if (!s || !s.lat) return;
+    renderPanel(name);
+    drawRailwayConnections(name);
+    map.panTo([s.lat, s.lon], { animate: true });
+}
+
+// ── Tier filter buttons ───────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tier = btn.dataset.tier;
+        if (activeFilters.has(tier)) {
+            activeFilters.delete(tier);
+            btn.classList.remove('active');
+            btn.classList.add('inactive');
+        } else {
+            activeFilters.add(tier);
+            btn.classList.add('active');
+            btn.classList.remove('inactive');
+        }
+        updateVisibility();
+    });
+});
+
+// ── Draw railway tracks ───────────────────────────────────────────────────────
+// Generous Saskatchewan bounding box — tracks entirely outside this are skipped
+const SK_LON_MIN = -112, SK_LON_MAX = -100, SK_LAT_MIN = 48, SK_LAT_MAX = 61;
+
+function builderToCompany(builder) {
+    if (!builder) return 'Other';
+    const b = builder.toUpperCase();
+    if (b.startsWith('CPR')) return 'CPR';
+    if (b.startsWith('CNOR') || b.startsWith('CNR')) return 'CNR';
+    if (b.startsWith('GTP')) return 'GTP';
+    return 'Other';
+}
+
+function drawTracks(tracks) {
+    tracks.forEach(track => {
+        if (!track.coordinates || track.coordinates.length < 2) return;
+        const company = builderToCompany(track.builder_name);
+        if (company === 'Other') return;
+        const builtYear = track.built_year || 0;
+        if (builtYear > 1921) return;
+        // Skip tracks with no coordinates inside Saskatchewan
+        const hasSKPoint = track.coordinates.some(([lon, lat]) =>
+            lon >= SK_LON_MIN && lon <= SK_LON_MAX &&
+            lat >= SK_LAT_MIN && lat <= SK_LAT_MAX
+        );
+        if (!hasSKPoint) return;
+        const latlngs = track.coordinates.map(([lon, lat]) => [lat, lon]);
+        L.polyline(latlngs, {
+            color: RAILWAY_COLORS[company],
+            weight: 1.5,
+            opacity: 0.45,
+            interactive: false,
+        }).addTo(map);
+    });
+}
+
+// ── Load data ─────────────────────────────────────────────────────────────────
+async function loadData() {
+    const [settlementRes, trackRes, industryRes] = await Promise.all([
+        fetch('tier_settlements.json'),
+        fetch('railway_tracks.json'),
+        fetch('industry_data.json'),
+    ]);
+    settlements = await settlementRes.json();
+    const trackData = await trackRes.json();
+    const industryData = await industryRes.json();
+    drawTracks(trackData.tracks);
+    placeMarkers();
+    renderTierDefinitions(industryData.byTier);
+}
+
+loadData().catch(err => {
+    document.getElementById('detailPanel').innerHTML =
+        `<div class="empty-state"><p style="color:#e57373">Failed to load data: ${err.message}</p>
+        <p>Run a local server: <code>python3 -m http.server</code></p></div>`;
+});
+</script>
+
+<style>
+.dark-tip {
+    background: #1a1a1e !important;
+    color: #f1c730 !important;
+    border: 1px solid #0b6a41 !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 3px;
+}
+.dark-tip::before { border-top-color: #0b6a41 !important; }
+</style>
+
+</body>
+</html>

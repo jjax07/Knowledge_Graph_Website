@@ -38,9 +38,16 @@ Dot colour indicates the primary railway company that served the settlement:
 | File | Description |
 |------|-------------|
 | `index.html` | Landing page with project summary |
-| `settlement_profiles.html` | Main interactive map |
+| `settlement_profiles.html` | Main interactive map — settlements coloured by railway company |
+| `economic_hierarchy.html` | Economic hierarchy map — settlements coloured by commercial tier |
 | `settlements.json` | Pre-processed data for all 429 settlements |
-| `build_data.py` | Script to regenerate `settlements.json` from source data |
+| `tier_settlements.json` | Tier + industry data for the economic hierarchy map |
+| `industry_data.json` | Top industries by settlement and by tier (from Neo4j) |
+| `railway_tracks.json` | Railway track geometry (from `Sask_Railway_Visualizations`) |
+| `build_data.py` | Regenerates `settlements.json` |
+| `build_tier_data.py` | Regenerates `tier_settlements.json` |
+| `build_industry_data.py` | Regenerates `industry_data.json` via Neo4j |
+| `ECONOMIC_HIERARCHY.md` | Full documentation for the economic hierarchy map |
 
 ---
 
